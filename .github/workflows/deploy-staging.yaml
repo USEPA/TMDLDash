@@ -22,7 +22,7 @@ jobs:
       CRAN_REPO: https://packagemanager.posit.co/cran/__linux__/jammy/latest
 
       # GitHub Actions secrets
-      CONNECT_SERVER: ${{ secrets.CONNECT_SERVER }}
+      CONNECT_SERVER: ${{ secrets.CONNECT_SERVER }}   # set to "stage"
       CONNECT_ACCOUNT: ${{ secrets.CONNECT_ACCOUNT }}
       CONNECT_API_KEY: ${{ secrets.CONNECT_API_KEY }}
       MY_PAT: ${{ secrets.MY_PAT }}
@@ -77,19 +77,25 @@ jobs:
             file.path(appdir, "renv.lock"),
             file.path(appdir, "renv", "activate.R")
           )
-
           missing <- required[!file.exists(required)]
           if (length(missing)) {
             stop("Missing required renv files:\n", paste(missing, collapse = "\n"))
           }
-
           if (dir.exists(file.path(appdir, "packrat")) ||
               file.exists(file.path(appdir, "packrat.lock")) ||
               file.exists(file.path(appdir, "packrat.opts"))) {
             stop("Packrat files detected in app/")
           }
-
           cat("app/ looks renv-only and clean.\n")
+          RS
+
+      - name: Register Connect server
+        run: |
+          Rscript - <<'RS'
+          rsconnect::addServer(
+            name = "stage",
+            url = "https://rstudio-connect.dmap-stage.aws.epa.gov"
+          )
           RS
 
       - name: Authenticate to Posit Connect

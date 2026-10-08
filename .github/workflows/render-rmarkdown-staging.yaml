@@ -99,7 +99,11 @@ jobs:
 
       - name: Render Rmarkdown file
         run: |
-          Rscript -e 'rmarkdown::render(input = "scripts/DataCleaning.Rmd")'
+          Rscript -e 'rmarkdown::render(
+          input = "scripts/DataCleaning.Rmd",
+          output_file = "../app/www/DataCleaning.html",
+          output_dir = "scripts"
+          )'
 
       - name: Commit and push results
         shell: bash

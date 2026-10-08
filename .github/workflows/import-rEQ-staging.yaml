@@ -57,6 +57,11 @@ jobs:
           test -f app/data/EQ_data.RData && echo "EQ_data.RData exists" || (echo "EQ_data.RData missing" && exit 1)
           test -f app/data/RMD_data.RData && echo "RMD_data.RData exists" || (echo "RMD_data.RData missing" && exit 1)
 
+      - name: Sync with remote staging
+        run: |
+          git fetch origin staging
+          git rebase origin/staging
+
       - name: Commit results
         run: |
           git config --local user.email "actions@github.com"

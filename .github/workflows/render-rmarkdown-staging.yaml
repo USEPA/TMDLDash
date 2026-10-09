@@ -15,7 +15,6 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
-
     runs-on: ubuntu-latest
 
     steps:
@@ -51,10 +50,8 @@ jobs:
         run: |
           Rscript - <<'RS'
           options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/noble/latest"))
-
           pkgs <- c("rmarkdown", "knitr", "dplyr", "DiagrammeR", "htmlwidgets")
           install.packages(pkgs, dependencies = TRUE)
-
           if (!requireNamespace("rmarkdown", quietly = TRUE)) {
             stop("rmarkdown failed to install")
           }
@@ -65,45 +62,23 @@ jobs:
           ls -lh app/data || true
           test -f app/data/RMD_data.RData || (echo "Missing app/data/RMD_data.RData" && exit 1)
 
-      - name: Show app files for debugging
-        shell: bash
-        run: |
-          echo "Working directory: $(pwd)"
-          find app -maxdepth 4 -type f | sort
-
-      - name: Debug RMD data file before render
-        run: |
-          pwd
-          ls -lah
-          ls -lah app || true
-          ls -lah app/data || true
-          find app/data -maxdepth 1 -type f | sort || true
-          Rscript - <<'RS'
-          f <- "app/data/RMD_data.RData"
-          cat("exists:", file.exists(f), "\n")
-          if (file.exists(f)) {
-            cat("size:", file.info(f)$size, "\n")
-            cat("can read:", file.access(f, 4) == 0, "\n")
-          }
-          RS
-
-      - name: Test loading RMD data file directly
-        run: |
-          Rscript - <<'RS'
-          f <- "app/data/RMD_data.RData"
-          cat("exists:", file.exists(f), "\n")
-          cat("size:", file.info(f)$size, "\n")
-          obj_names <- load(f)
-          print(obj_names)
-          RS
-
       - name: Render Rmarkdown file
         run: |
-          Rscript -e 'rmarkdown::render(
-          input = "scripts/DataCleaning.Rmd",
-          output_file = "../app/www/DataCleaning.html",
-          output_dir = "scripts"
-          )'
+          mkdir -p app/www
+          Rscript - <<'RS'
+          out <- rmarkdown::render(
+            input = "scripts/DataCleaning.Rmd",
+            output_dir = "app/www",
+            output_file = "DataCleaning.html",
+            quiet = FALSE
+          )
+          cat("Rendered to:", out, "\n")
+          RS
+
+      - name: Confirm output exists
+        run: |
+          ls -lah app/www
+          test -f app/www/DataCleaning.html || (echo "Missing app/www/DataCleaning.html" && exit 1)
 
       - name: Commit and push results
         shell: bash

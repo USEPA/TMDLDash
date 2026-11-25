@@ -114,7 +114,7 @@ load_all_app_data <- function(force_reload = FALSE, verbose = TRUE) {
   load_from_local <- function() {
     say("Attempting local load...")
     
-    rdata_file <- Sys.getenv("APP_RDATA_FILE", unset = "data/EQ_data.Rdata")
+    rdata_file <- Sys.getenv("APP_RDATA_FILE", unset = "app/data/EQ_data.Rdata")
     if (!file.exists(rdata_file)) stop("Local RData file not found: ", rdata_file)
     
     e <- new.env(parent = emptyenv())

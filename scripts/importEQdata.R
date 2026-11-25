@@ -219,13 +219,8 @@ if(check.api == 200) {
   save(
     filt.df, states_regions, addparameters_filter_poll, addparameters_filter_pg,
     pollutants_groups, parameters, max_year, years_list, categories, update.tmdls,
-    act_agencies,
-    file = file.path("app", "data", "EQ_data.RData")
-  )
-  
-  save(
-    update.tmdls, orig.distinct.n, orig.dups.n, orig.dups.removed, orig.n,
+    act_agencies,  update.tmdls, orig.distinct.n, orig.dups.n, orig.dups.removed, orig.n,
     orig.noauid.n, orig.nopoll.n, orig.noauidpoll.n, max.dups, min.dups, filt.df.n,
-    file = file.path("app", "data", "RMD_data.RData")
+    file = file.path("data", "EQ_data.RData")
   )
 }

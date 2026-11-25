@@ -17,8 +17,11 @@ library(lubridate)
 shiny::addResourcePath("appwww", "www")
 
 # Load app data once at startup
-source("R/data_load.R")
+source("R/load_app_data.R")
 load_all_app_data()
+
+source("R/build_data_cleaning_content.R")
+
 
 message("startup: plain Shiny app loaded")
 message("data exists? ", exists("filt.df", envir = EQ_cache, inherits = FALSE))
@@ -29,16 +32,52 @@ ui <- bslib::page_fluid(
   tags$head(
     tags$link(rel = "stylesheet", href = "appwww/styles.css"),
     tags$script(HTML("$(document).on('click', 'a', function(e) { e.stopPropagation(); });")),
+    tags$script(HTML("
+    Shiny.addCustomMessageHandler('open_data_cleaning', function(message) {
+      var buttons = document.querySelectorAll('#summary_accordion .accordion-button');
+      buttons.forEach(function(btn) {
+        if (btn.textContent.indexOf('Data Cleaning Workflow') !== -1) {
+          if (btn.classList.contains('collapsed')) {
+            btn.click();
+          }
+          btn.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  ")),
     tags$style(HTML("
-      .accordion-button {
-        background-color: #005EA2;
-        color: white;
-      }
-      .accordion-button:not(.collapsed) {
-        background-color: #005EA2;
-        color: white;
-      }
-    "))
+    .accordion-button {
+      background-color: #005EA2;
+      color: white;
+    }
+    .accordion-button:not(.collapsed) {
+      background-color: #005EA2;
+      color: white;
+    }
+
+    /* Hide the USA banner guidance panel by default */
+    .usa-banner__content {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(-5px);
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      pointer-events: none;
+      transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease, padding 0.25s ease;
+    }
+
+    /* Reveal on hover or keyboard focus */
+    .usa-banner:hover .usa-banner__content,
+    .usa-banner:focus-within .usa-banner__content {
+      max-height: 1000px;
+      opacity: 1;
+      transform: translateY(0);
+      padding-top: 1rem !important;
+      padding-bottom: 1rem !important;
+      pointer-events: auto;
+    }
+  "))
   ),
   
   shiny::includeHTML("www/header.html"),
@@ -74,6 +113,7 @@ ui <- bslib::page_fluid(
       nav_panel(
         "Summary",
         accordion(
+          id = "summary_accordion",
           open = c("desc", "count", "instruct"),
           accordion_panel(
             title = span("TMDL Count", style = "font-size: 16px"),
@@ -92,6 +132,14 @@ ui <- bslib::page_fluid(
             icon = bsicons::bs_icon("person-workspace"),
             tags$p(htmlOutput("instructions")),
             value = "instruct"
+          ),
+          accordion_panel(
+            title = "Data Cleaning Workflow",
+            icon = bsicons::bs_icon("file-earmark-text"),
+            uiOutput("data_cleaning_html"),
+            DiagrammeR::grVizOutput("data_cleaning_diagram"),
+            uiOutput("data_cleaning_bottom"),
+            value = "data_cleaning_workflow"
           )
         )
       ),
@@ -269,6 +317,26 @@ server <- function(input, output, session) {
       }
     }, delay = 0)
   }, once = TRUE)
+  
+  make_metrics <- function() {
+    list(
+      update.tmdls = EQ_cache$update.tmdls,
+      orig.n = EQ_cache$orig.n,
+      orig.dups.n = EQ_cache$orig.dups.n,
+      orig.dups.removed = EQ_cache$orig.dups.removed,
+      orig.nopoll.n = EQ_cache$orig.nopoll.n,
+      orig.noauid.n = EQ_cache$orig.noauid.n,
+      orig.noauidpoll.n = EQ_cache$orig.noauidpoll.n,
+      filt.df.n = EQ_cache$filt.df.n,
+      min.dups = EQ_cache$min.dups,
+      max.dups = EQ_cache$max.dups,
+      orig.distinct.n = EQ_cache$orig.distinct.n
+    )
+  }
+  
+  observeEvent(input$open_data_cleaning, {
+    session$sendCustomMessage("open_data_cleaning", list())
+  })
   
   observe({
     req(data_ready())
@@ -452,7 +520,7 @@ server <- function(input, output, session) {
       "Data Source: ",
       '<a href="https://owapps.epa.gov/expertquery/national-downloads" target="_blank">Expert Query National Downloads</a><br>',
       "Data Cleaning: ",
-      '<a href="DataCleaning.html" target="_blank">Workflow</a><br>',
+      '<a href="#" onclick="Shiny.setInputValue(\'open_data_cleaning\', Math.random()); return false;">Workflow</a><br>',
       "Definitions: ",
       '<a href="https://www.ecfr.gov/current/title-40/chapter-I/subchapter-D/part-130/section-130.2" target="_blank">40 C.F.R. 130.2(i)</a>'
     ))
@@ -489,6 +557,21 @@ server <- function(input, output, session) {
     filename = function() paste("filtered_TMDLs", format(Sys.Date(), "_%m_%d_%Y"), ".csv", sep = ""),
     content = function(file) utils::write.csv(reactive_df(), file)
   )
+  
+  output$data_cleaning_html <- renderUI({
+    req(data_ready())
+    build_data_cleaning_content(make_metrics())$html_top
+  })
+  
+  output$data_cleaning_diagram <- DiagrammeR::renderGrViz({
+    req(data_ready())
+    build_data_cleaning_content(make_metrics())$diagram
+  })
+  
+  output$data_cleaning_bottom <- renderUI({
+    req(data_ready())
+    build_data_cleaning_content(make_metrics())$html_bottom
+  })
   
   count_df <- reactive({
     req(reactive_df())
